@@ -45,3 +45,10 @@ RANDOM_SEED = None
 
 # Duração do fade-in da tela de game over (segundos)
 GAME_OVER_FADE_DURATION = 1.5
+
+# Configurações da mecânica de escudo temporário
+SHIELD_DURATION = 6.0          # Tempo que o escudo fica ativo após coleta
+SHIELD_SPAWN_EVERY = 12.0      # Intervalo para surgir um novo item de escudo
+SHIELD_PICKUP_TTL = 8.0        # Tempo de vida do item na tela
+SHIELD_PICKUP_RADIUS = 10      # Raio do item coletável
+SHIELD_HIT_INVULN = 1.0        # Pequena invulnerabilidade após o escudo quebrar
