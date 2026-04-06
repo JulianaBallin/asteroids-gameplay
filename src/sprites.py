@@ -104,9 +104,11 @@ class Ship(pg.sprite.Sprite):
         self.angle = -90.0
         self.cool = 0.0
         self.invuln = 0.0
+        self.shield_time = 0.0
         self.alive = True
         self.r = C.SHIP_RADIUS
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        
 
     def control(self, keys: pg.key.ScancodeWrapper, dt: float):
         # Apply rotation, thrust, and friction from the current input state.
@@ -135,27 +137,54 @@ class Ship(pg.sprite.Sprite):
         self.invuln = 1.0
 
     def update(self, dt: float):
-        # Advance cooldowns, move the ship, and wrap it on screen.
+        """
+        Atualiza o estado da nave a cada frame.
+
+        Responsabilidades:
+        - reduzir o cooldown do tiro;
+        - reduzir o tempo de invulnerabilidade;
+        - reduzir o tempo do escudo temporário;
+        - mover a nave;
+        - manter a nave dentro da tela usando wrap.
+        """
         if self.cool > 0:
             self.cool -= dt
+
         if self.invuln > 0:
             self.invuln -= dt
+
+        if self.shield_time > 0:
+            self.shield_time -= dt
+
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
         self.rect.center = self.pos
-
+        
     def draw(self, surf: pg.Surface):
-        # Draw the ship and its temporary invulnerability indicator.
+        """
+        Desenha a nave e seus efeitos visuais temporários.
+
+        Efeitos:
+        - círculo piscando para indicar invulnerabilidade;
+        - círculo maior para indicar que o escudo temporário está ativo.
+        """
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + 140)
         right = angle_to_vec(self.angle - 140)
+
         p1 = self.pos + dirv * self.r
         p2 = self.pos + left * self.r * 0.9
         p3 = self.pos + right * self.r * 0.9
+
         draw_poly(surf, [p1, p2, p3])
+
+        # Indica a invulnerabilidade inicial ou após respawn
         if self.invuln > 0 and int(self.invuln * 10) % 2 == 0:
             draw_circle(surf, self.pos, self.r + 6)
 
+        # Indica que o escudo temporário está ativo
+        if self.shield_time > 0 and int(self.shield_time * 12) % 2 == 0:
+            draw_circle(surf, self.pos, self.r + 12)
 
 class UFO(pg.sprite.Sprite):
     # Initialize a UFO enemy with its size profile and movement state.
@@ -204,3 +233,29 @@ class UFO(pg.sprite.Sprite):
         cup = pg.Rect(0, 0, w * 0.5, h * 0.7)
         cup.center = (self.pos.x, self.pos.y - h * 0.3)
         pg.draw.ellipse(surf, C.WHITE, cup, width=1)
+
+def draw(self, surf: pg.Surface):
+    """
+    Desenha a nave e seus efeitos visuais temporários.
+
+    Efeitos:
+    - círculo piscando para indicar invulnerabilidade;
+    - círculo maior para indicar que o escudo temporário está ativo.
+    """
+    dirv = angle_to_vec(self.angle)
+    left = angle_to_vec(self.angle + 140)
+    right = angle_to_vec(self.angle - 140)
+
+    p1 = self.pos + dirv * self.r
+    p2 = self.pos + left * self.r * 0.9
+    p3 = self.pos + right * self.r * 0.9
+
+    draw_poly(surf, [p1, p2, p3])
+
+    # Indica a invulnerabilidade inicial ou após respawn
+    if self.invuln > 0 and int(self.invuln * 10) % 2 == 0:
+        draw_circle(surf, self.pos, self.r + 6)
+
+    # Indica que o escudo temporário está ativo
+    if self.shield_time > 0 and int(self.shield_time * 12) % 2 == 0:
+        draw_circle(surf, self.pos, self.r + 12)
