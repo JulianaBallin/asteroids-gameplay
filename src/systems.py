@@ -8,25 +8,36 @@ from random import uniform
 import pygame as pg
 
 import config as C
-from sprites import Asteroid, Ship, UFO
+from sprites import Asteroid, ShieldPowerUp, Ship, UFO
 from utils import Vec, rand_edge_pos, rand_unit_vec
 
 
 class World:
     # Initialize the world state, entity groups, timers, and player progress.
     def __init__(self):
+        """
+        Inicializa o estado global do mundo do jogo.
+
+        Nesta versão, também cria:
+        - o grupo de power-ups;
+        - o temporizador de surgimento do item de escudo.
+        """
         self.ship = Ship(Vec(C.WIDTH / 2, C.HEIGHT / 2))
         self.bullets = pg.sprite.Group()
         self.ufo_bullets = pg.sprite.Group()
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
+        self.powerups = pg.sprite.Group()
+
         self.all_sprites = pg.sprite.Group(self.ship)
+
         self.score = 0
         self.lives = C.START_LIVES
         self.wave = 0
         self.wave_cool = C.WAVE_DELAY
         self.safe = C.SAFE_SPAWN_TIME
         self.ufo_timer = C.UFO_SPAWN_EVERY
+        self.shield_timer = C.SHIELD_SPAWN_EVERY
         self.game_over = False  # Sinaliza fim de jogo para a cena principal
 
     def start_wave(self):
@@ -83,22 +94,44 @@ class World:
         self.score = max(0, self.score - C.HYPERSPACE_COST)
 
     def update(self, dt: float, keys):
-        # Update the world simulation, timers, enemy behavior, and progression.
+        """
+        Atualiza toda a simulação do jogo a cada frame.
+
+        Responsabilidades:
+        - aplicar controle da nave;
+        - atualizar sprites;
+        - controlar área segura após respawn;
+        - controlar surgimento e tiros de UFO;
+        - controlar surgimento do item de escudo;
+        - resolver colisões;
+        - iniciar novas waves.
+        """
         self.ship.control(keys, dt)
         self.all_sprites.update(dt)
+
         if self.safe > 0:
             self.safe -= dt
             self.ship.invuln = 0.5
+
+        # Controla o surgimento periódico do item de escudo
+        self.shield_timer -= dt
+        if self.shield_timer <= 0 and not self.powerups:
+            self.spawn_shield_powerup()
+            self.shield_timer = C.SHIELD_SPAWN_EVERY
+
+        # Comportamento dos UFOs
         if self.ufos:
             self.ufo_try_fire()
         else:
             self.ufo_timer -= dt
+
         if not self.ufos and self.ufo_timer <= 0:
             self.spawn_ufo()
             self.ufo_timer = C.UFO_SPAWN_EVERY
 
         self.handle_collisions()
 
+        # Inicia nova wave quando não houver mais asteroides
         if not self.asteroids and self.wave_cool <= 0:
             self.start_wave()
             self.wave_cool = C.WAVE_DELAY
@@ -106,7 +139,16 @@ class World:
             self.wave_cool -= dt
 
     def handle_collisions(self):
-        # Resolve collisions between bullets, asteroids, UFOs, and the ship.
+        """
+        Resolve as colisões entre os objetos do jogo.
+
+        Trata:
+        - tiro do jogador com asteroides;
+        - tiro do UFO com asteroides;
+        - nave com asteroides, UFOs e tiros inimigos;
+        - nave com item de escudo;
+        - tiro do jogador com UFO.
+        """
         hits = pg.sprite.groupcollide(
             self.asteroids,
             self.bullets,
@@ -127,26 +169,35 @@ class World:
         for ast, _ in ufo_hits.items():
             self.split_asteroid(ast)
 
+        # Coleta do item de escudo
+        for powerup in list(self.powerups):
+            if (powerup.pos - self.ship.pos).length() < (powerup.r + self.ship.r):
+                self.ship.shield_time = C.SHIELD_DURATION
+                powerup.kill()
+
+        # Colisões que causam dano à nave
         if self.ship.invuln <= 0 and self.safe <= 0:
             for ast in self.asteroids:
                 if (ast.pos - self.ship.pos).length() < (ast.r + self.ship.r):
-                    self.ship_die()
+                    self.hit_ship()
                     break
+
             for ufo in self.ufos:
                 if (ufo.pos - self.ship.pos).length() < (ufo.r + self.ship.r):
-                    self.ship_die()
+                    self.hit_ship()
                     break
+
             for bullet in self.ufo_bullets:
                 if (bullet.pos - self.ship.pos).length() < (bullet.r + self.ship.r):
                     bullet.kill()
-                    self.ship_die()
+                    self.hit_ship()
                     break
 
+        # Tiros do jogador acertando UFO
         for ufo in list(self.ufos):
             for b in list(self.bullets):
                 if (ufo.pos - b.pos).length() < (ufo.r + b.r):
-                    score = (C.UFO_SMALL["score"] if ufo.small
-                             else C.UFO_BIG["score"])
+                    score = C.UFO_SMALL["score"] if ufo.small else C.UFO_BIG["score"]
                     self.score += score
                     ufo.kill()
                     b.kill()
@@ -175,11 +226,53 @@ class World:
         self.safe = C.SAFE_SPAWN_TIME
 
     def draw(self, surf: pg.Surface, font: pg.font.Font):
-        # Draw all world entities and the current HUD information.
+        """
+        Desenha todos os sprites e a HUD do jogo.
+
+        A HUD foi atualizada para exibir também o tempo restante
+        do escudo quando ele estiver ativo.
+        """
         for spr in self.all_sprites:
             spr.draw(surf)
 
         pg.draw.line(surf, (60, 60, 60), (0, 50), (C.WIDTH, 50), width=1)
+
         txt = f"SCORE {self.score:06d}   LIVES {self.lives}   WAVE {self.wave}"
+
+        if self.ship.shield_time > 0:
+            txt += f"   SHIELD {self.ship.shield_time:0.1f}s"
+
         label = font.render(txt, True, C.WHITE)
         surf.blit(label, (10, 10))
+
+
+    def spawn_shield_powerup(self):
+        """
+        Cria um item de escudo em uma posição aleatória da tela.
+
+        A posição é gerada afastada das bordas para facilitar visualização
+        e coleta pelo jogador.
+        """
+        pos = Vec(
+            uniform(80, C.WIDTH - 80),
+            uniform(80, C.HEIGHT - 80),
+        )
+
+        powerup = ShieldPowerUp(pos)
+        self.powerups.add(powerup)
+        self.all_sprites.add(powerup)
+        
+    def hit_ship(self):
+        """
+        Trata o momento em que a nave recebe dano.
+
+        Regras:
+        - se houver escudo ativo, o escudo é consumido e a nave sobrevive;
+        - se não houver escudo, aplica a lógica normal de perda de vida.
+        """
+        if self.ship.shield_time > 0:
+            self.ship.shield_time = 0
+            self.ship.invuln = C.SHIELD_HIT_INVULN
+            return
+
+        self.ship_die()
