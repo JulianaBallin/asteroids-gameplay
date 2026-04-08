@@ -91,17 +91,9 @@ O projeto utiliza o **modelo C4** para representar a solução em diferentes ní
 
 <h2 align="center">🧠 Visão Conceitual da Solução</h2>
 
-```mermaid
-flowchart LR
-    A[Jogador] --> B[Jogo Asteroids Gameplay]
-    B --> C[Loop Principal]
-    C --> D[Controle da Nave]
-    C --> E[Asteroides]
-    C --> F[Projéteis]
-    C --> G[Power-ups]
-    C --> H[Sistema de Pontuação]
-    C --> I[Mecânicas Especiais]
-```
+<p align="center">
+  <img src="docs/diagrams/Asteroids_Diagrama%20C4%20Containers.png" alt="Diagrama C4 de Containers do Asteroids Gameplay" width="1000">
+</p>
 
 ---
 
