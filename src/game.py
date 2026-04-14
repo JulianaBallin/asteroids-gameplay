@@ -55,6 +55,8 @@ class Game:
                             self.world.try_fire()
                         if e.key == pg.K_LSHIFT:
                             self.world.hyperspace()
+                        if e.key == pg.K_LCTRL:
+                            self.world.ship.dash()
                     elif self.scene.name == "menu":
                         self.world = World()
                         self.scene = Scene("play")

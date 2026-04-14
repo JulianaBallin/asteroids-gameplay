@@ -124,6 +124,7 @@ class Ship(pg.sprite.Sprite):
         self.alive = True
         self.r = C.SHIP_RADIUS
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        self.dash_cool = 0.0
 
     def control(self, keys: pg.key.ScancodeWrapper, dt: float):
         """Aplica rotação, aceleração e atrito com base nas teclas pressionadas."""
@@ -202,6 +203,9 @@ class Ship(pg.sprite.Sprite):
         if self.laser_time > 0:
             self.laser_time -= dt
 
+        if self.dash_cool > 0:
+            self.dash_cool -= dt
+
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
         self.rect.center = self.pos
@@ -239,6 +243,20 @@ class Ship(pg.sprite.Sprite):
         # Indica que o escudo temporário está ativo
         if self.shield_time > 0 and int(self.shield_time * 12) % 2 == 0:
             draw_circle(surf, self.pos, self.r + 12)
+
+        # efeito visual do dash (rastro simples)
+        if self.dash_cool > C.DASH_COOLDOWN - 0.2:
+            draw_circle(surf, self.pos, self.r + 10)
+    
+    def dash(self):
+        if self.dash_cool > 0:
+            return
+
+        dirv = angle_to_vec(self.angle)
+        self.vel += dirv * C.DASH_FORCE
+
+        self.dash_cool = C.DASH_COOLDOWN
+        self.invuln = max(self.invuln, C.DASH_INVULN)
 
 
 class ShieldPowerUp(pg.sprite.Sprite):
