@@ -48,6 +48,9 @@ O jogador pode coletar um item que permite disparar três tiros simultâneos por
 ### 4. Raio Laser
 Transforma o disparo padrão em um feixe de laser contínuo que atravessa e destrói todos os inimigos em seu alcance por um período de tempo.
 
+### 5. Dash da Nave
+Permite que a nave execute um avanço instantâneo na direção em que está apontando, aplicando um forte impulso de velocidade.
+
 ---
 
 <h2 align="center">🤖 Tecnologias Utilizadas</h2>
@@ -153,8 +156,8 @@ python3 src/main.py
 | Integrante | Responsabilidade                  |
 | ---------- | --------------------------------- |
 | Juliana Ballin  | Escudo Temporário e Combo de Destruição|
-| Membro 2   | Escrever aqui       |
-| Membro 3   | Escrever aqui  |
+| João Lucas   | Tiro Triplo e Laser |
+| Leonardo Castro  | Dash |
 
 
 ---
@@ -173,8 +176,8 @@ python3 src/main.py
 | Nome         | Matrícula                   |
 | ------------ | ------------------------ |
 | Juliana Ballin Lima | 2315310011 |
-| Escrever | Inserir |
-| Escrever | Inserir |
+| João Lucas Noronha de Castro | 2315310009 |
+| Leonardo Castro da Silva | 2215310016 |
 
 ---
 

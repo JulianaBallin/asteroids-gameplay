@@ -69,3 +69,8 @@ LASER_RANGE = 400.0            # Alcance máximo do raio laser
 # Configurações da mecânica de combo de destruição
 COMBO_WINDOW = 2.0             # Janela máxima entre destruições para manter o combo
 COMBO_MAX_MULTIPLIER = 5       # Multiplicador máximo permitido
+
+# Mecânica de dash
+DASH_FORCE = 500.0
+DASH_COOLDOWN = 1.5
+DASH_INVULN = 0.2
