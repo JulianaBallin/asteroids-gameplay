@@ -56,3 +56,21 @@ def text(surface: pg.Surface, font: pg.font.Font, s: str, x: int, y: int):
     surf = font.render(s, True, C.WHITE)
     rect = surf.get_rect(topleft=(x, y))
     surface.blit(surf, rect)
+
+
+def line_circle_collision(p1: Vec, p2: Vec, center: Vec, radius: float) -> bool:
+    """
+    Verifica se um segmento de reta (p1-p2) colide com um círculo.
+    """
+    line_vec = p2 - p1
+    if line_vec.length_squared() == 0:
+        return (center - p1).length() < radius
+
+    # Projeção escalar do vetor (center - p1) no vetor da linha
+    t = (center - p1).dot(line_vec) / line_vec.length_squared()
+
+    # Clampa t entre 0 e 1 para encontrar o ponto mais próximo no segmento
+    t = max(0, min(1, t))
+
+    closest_point = p1 + t * line_vec
+    return (center - closest_point).length() < radius

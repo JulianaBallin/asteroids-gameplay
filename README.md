@@ -45,6 +45,9 @@ Cada destruição consecutiva aumenta o multiplicador de pontos, incentivando de
 ### 3. Tiro Triplo
 O jogador pode coletar um item que permite disparar três tiros simultâneos por um tempo limitado, aumentando significativamente o poder de fogo contra grandes hordas de asteroides.
 
+### 4. Raio Laser
+Transforma o disparo padrão em um feixe de laser contínuo que atravessa e destrói todos os inimigos em seu alcance por um período de tempo.
+
 ---
 
 <h2 align="center">🤖 Tecnologias Utilizadas</h2>

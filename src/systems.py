@@ -7,8 +7,8 @@ from random import uniform
 import pygame as pg
 
 import config as C
-from sprites import Asteroid, ShieldPowerUp, Ship, TripleShotPowerUp, UFO
-from utils import Vec, rand_edge_pos, rand_unit_vec
+from sprites import Asteroid, Laser, LaserPowerUp, ShieldPowerUp, Ship, TripleShotPowerUp, UFO
+from utils import Vec, line_circle_collision, rand_edge_pos, rand_unit_vec
 
 
 class World:
@@ -20,6 +20,7 @@ class World:
         Nesta versão, além da base do jogo, também controla:
         - power-up de escudo;
         - power-up de tiro triplo;
+        - power-up de raio laser;
         - estado do combo de destruição;
         - pontuação, wave e vidas.
         """
@@ -29,6 +30,7 @@ class World:
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
         self.powerups = pg.sprite.Group()
+        self.lasers = pg.sprite.Group()
 
         self.all_sprites = pg.sprite.Group(self.ship)
 
@@ -40,6 +42,7 @@ class World:
         self.ufo_timer = C.UFO_SPAWN_EVERY
         self.shield_timer = C.SHIELD_SPAWN_EVERY
         self.triple_shot_timer = C.TRIPLE_SHOT_SPAWN_EVERY
+        self.laser_timer = C.LASER_SPAWN_EVERY
         self.game_over = False
 
         # Estado da mecânica de combo
@@ -112,6 +115,19 @@ class World:
         self.powerups.add(powerup)
         self.all_sprites.add(powerup)
 
+    def spawn_laser_powerup(self):
+        """
+        Cria um item de raio laser em uma posição aleatória da tela.
+        """
+        pos = Vec(
+            uniform(80, C.WIDTH - 80),
+            uniform(80, C.HEIGHT - 80),
+        )
+
+        powerup = LaserPowerUp(pos)
+        self.powerups.add(powerup)
+        self.all_sprites.add(powerup)
+
     def ufo_try_fire(self):
         """Permite que cada UFO ativo tente atirar na nave."""
         for ufo in self.ufos:
@@ -122,13 +138,16 @@ class World:
 
     def try_fire(self):
         """Dispara tiros da nave se o limite de projéteis permitir."""
-        if len(self.bullets) >= C.MAX_BULLETS:
+        if len(self.bullets) >= C.MAX_BULLETS and self.ship.laser_time <= 0:
             return
 
-        new_bullets = self.ship.fire()
-        for bullet in new_bullets:
-            self.bullets.add(bullet)
-            self.all_sprites.add(bullet)
+        new_sprites = self.ship.fire()
+        for spr in new_sprites:
+            if isinstance(spr, Laser):
+                self.lasers.add(spr)
+            else:
+                self.bullets.add(spr)
+            self.all_sprites.add(spr)
 
     def hyperspace(self):
         """Aciona o hyperspace da nave e aplica a penalidade de pontuação."""
@@ -199,6 +218,12 @@ class World:
             self.spawn_triple_shot_powerup()
             self.triple_shot_timer = C.TRIPLE_SHOT_SPAWN_EVERY
 
+        # Controla o surgimento periódico do item de raio laser
+        self.laser_timer -= dt
+        if self.laser_timer <= 0 and not self.powerups:
+            self.spawn_laser_powerup()
+            self.laser_timer = C.LASER_SPAWN_EVERY
+
         # Controla o tempo do combo
         if self.combo_timer > 0:
             self.combo_timer -= dt
@@ -230,11 +255,14 @@ class World:
 
         Trata:
         - tiro do jogador com asteroides;
+        - raio laser com asteroides;
         - tiro do UFO com asteroides;
         - nave com asteroides, UFOs e tiros inimigos;
         - nave com itens (power-ups);
-        - tiro do jogador com UFO.
+        - tiro do jogador com UFO;
+        - raio laser com UFO.
         """
+        # Colisão Tiro Normal x Asteroide
         hits = pg.sprite.groupcollide(
             self.asteroids,
             self.bullets,
@@ -244,6 +272,12 @@ class World:
         )
         for asteroid, _ in hits.items():
             self.split_asteroid(asteroid, by_player=True)
+
+        # Colisão Laser x Asteroide
+        for laser in self.lasers:
+            for asteroid in list(self.asteroids):
+                if line_circle_collision(laser.pos, laser.end_pos, asteroid.pos, asteroid.r):
+                    self.split_asteroid(asteroid, by_player=True)
 
         ufo_hits = pg.sprite.groupcollide(
             self.asteroids,
@@ -262,6 +296,8 @@ class World:
                     self.ship.shield_time = C.SHIELD_DURATION
                 elif isinstance(powerup, TripleShotPowerUp):
                     self.ship.triple_shot_time = C.TRIPLE_SHOT_DURATION
+                elif isinstance(powerup, LaserPowerUp):
+                    self.ship.laser_time = C.LASER_DURATION
                 powerup.kill()
 
         # Colisões que causam dano à nave
@@ -290,6 +326,13 @@ class World:
                     self.score += score
                     ufo.kill()
                     bullet.kill()
+            
+            # Laser acertando UFO
+            for laser in self.lasers:
+                if line_circle_collision(laser.pos, laser.end_pos, ufo.pos, ufo.r):
+                    score = C.UFO_SMALL["score"] if ufo.small else C.UFO_BIG["score"]
+                    self.score += score
+                    ufo.kill()
 
     def split_asteroid(self, asteroid: Asteroid, by_player: bool = True):
         """
@@ -361,6 +404,7 @@ class World:
         - wave;
         - tempo restante do escudo, se ativo;
         - tempo restante do tiro triplo, se ativo;
+        - tempo restante do raio laser, se ativo;
         - combo atual, se houver sequência em andamento.
         """
         for spr in self.all_sprites:
@@ -375,6 +419,9 @@ class World:
 
         if self.ship.triple_shot_time > 0:
             txt += f"   TRIPLE {self.ship.triple_shot_time:0.1f}s"
+
+        if self.ship.laser_time > 0:
+            txt += f"   LASER {self.ship.laser_time:0.1f}s"
 
         if self.combo_hits > 1 and self.combo_timer > 0:
             txt += f"   COMBO x{self.combo_multiplier}"

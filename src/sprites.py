@@ -109,6 +109,8 @@ class Ship(pg.sprite.Sprite):
             controla por quanto tempo o escudo temporário permanece ativo.
         triple_shot_time:
             controla por quanto tempo o tiro triplo permanece ativo.
+        laser_time:
+            controla por quanto tempo o raio laser permanece ativo.
         """
         super().__init__()
         self.pos = Vec(pos)
@@ -118,6 +120,7 @@ class Ship(pg.sprite.Sprite):
         self.invuln = 0.0
         self.shield_time = 0.0
         self.triple_shot_time = 0.0
+        self.laser_time = 0.0
         self.alive = True
         self.r = C.SHIP_RADIUS
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
@@ -133,10 +136,19 @@ class Ship(pg.sprite.Sprite):
 
         self.vel *= C.SHIP_FRICTION
 
-    def fire(self) -> list[Bullet]:
+    def fire(self) -> list[pg.sprite.Sprite]:
         """Cria projéteis da nave se o cooldown permitir."""
         if self.cool > 0:
             return []
+
+        # Se tiver laser, ele é contínuo enquanto pressiona (ou toggle, mas vamos de tiro)
+        # Vamos fazer o laser ser um "tiro" especial que dura pouco tempo e reseta o cooldown
+        if self.laser_time > 0:
+            dirv = angle_to_vec(self.angle)
+            pos = self.pos + dirv * (self.r + 2)
+            # O cooldown do laser é menor para parecer um feixe contínuo ou semi-contínuo
+            self.cool = 0.05 
+            return [Laser(pos, self.angle)]
 
         bullets = []
         dirv = angle_to_vec(self.angle)
@@ -171,6 +183,7 @@ class Ship(pg.sprite.Sprite):
         - reduzir o tempo de invulnerabilidade;
         - reduzir o tempo do escudo temporário;
         - reduzir o tempo do tiro triplo;
+        - reduzir o tempo do raio laser;
         - mover a nave;
         - manter a nave dentro da tela usando wrap.
         """
@@ -185,6 +198,9 @@ class Ship(pg.sprite.Sprite):
 
         if self.triple_shot_time > 0:
             self.triple_shot_time -= dt
+
+        if self.laser_time > 0:
+            self.laser_time -= dt
 
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
@@ -301,6 +317,53 @@ class TripleShotPowerUp(pg.sprite.Sprite):
         p3 = self.pos + Vec(-self.r + 3, self.r - 3)
 
         draw_poly(surf, [p1, p2, p3])
+
+
+class Laser(pg.sprite.Sprite):
+    """Raio laser disparado pela nave."""
+
+    def __init__(self, pos: Vec, angle: float):
+        super().__init__()
+        self.pos = Vec(pos)
+        self.angle = angle
+        self.dir = angle_to_vec(angle)
+        self.length = C.LASER_RANGE
+        self.ttl = 0.1  # Dura quase nada, é reposto pelo Ship.fire()
+        self.end_pos = self.pos + self.dir * self.length
+
+    def update(self, dt: float):
+        self.ttl -= dt
+        if self.ttl <= 0:
+            self.kill()
+
+    def draw(self, surf: pg.Surface):
+        pg.draw.line(surf, C.WHITE, self.pos, self.end_pos, width=2)
+
+
+class LaserPowerUp(pg.sprite.Sprite):
+    """Item coletável que concede raio laser temporário para a nave."""
+
+    def __init__(self, pos: Vec):
+        super().__init__()
+        self.pos = Vec(pos)
+        self.ttl = C.LASER_PICKUP_TTL
+        self.r = C.LASER_PICKUP_RADIUS
+        self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        self.rect.center = self.pos
+
+    def update(self, dt: float):
+        self.ttl -= dt
+        if self.ttl <= 0:
+            self.kill()
+        self.rect.center = self.pos
+
+    def draw(self, surf: pg.Surface):
+        draw_circle(surf, self.pos, self.r)
+        # Desenha um quadrado para o laser
+        side = self.r - 2
+        rect = pg.Rect(0, 0, side * 2, side * 2)
+        rect.center = self.pos
+        pg.draw.rect(surf, C.WHITE, rect, width=1)
 
 
 class UFO(pg.sprite.Sprite):
