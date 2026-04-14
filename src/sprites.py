@@ -107,6 +107,8 @@ class Ship(pg.sprite.Sprite):
 
         shield_time:
             controla por quanto tempo o escudo temporário permanece ativo.
+        triple_shot_time:
+            controla por quanto tempo o tiro triplo permanece ativo.
         """
         super().__init__()
         self.pos = Vec(pos)
@@ -115,6 +117,7 @@ class Ship(pg.sprite.Sprite):
         self.cool = 0.0
         self.invuln = 0.0
         self.shield_time = 0.0
+        self.triple_shot_time = 0.0
         self.alive = True
         self.r = C.SHIP_RADIUS
         self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
@@ -130,16 +133,28 @@ class Ship(pg.sprite.Sprite):
 
         self.vel *= C.SHIP_FRICTION
 
-    def fire(self) -> Bullet | None:
-        """Cria um projétil da nave se o cooldown permitir."""
+    def fire(self) -> list[Bullet]:
+        """Cria projéteis da nave se o cooldown permitir."""
         if self.cool > 0:
-            return None
+            return []
 
+        bullets = []
         dirv = angle_to_vec(self.angle)
         pos = self.pos + dirv * (self.r + 6)
+
+        # Tiro principal
         vel = self.vel + dirv * C.SHIP_BULLET_SPEED
+        bullets.append(Bullet(pos, vel))
+
+        # Tiros extras se o power-up estiver ativo
+        if self.triple_shot_time > 0:
+            for offset in [-20, 20]:
+                side_dir = angle_to_vec(self.angle + offset)
+                side_vel = self.vel + side_dir * C.SHIP_BULLET_SPEED
+                bullets.append(Bullet(pos, side_vel))
+
         self.cool = C.SHIP_FIRE_RATE
-        return Bullet(pos, vel)
+        return bullets
 
     def hyperspace(self):
         """Teletransporta a nave para uma posição aleatória e zera sua velocidade."""
@@ -155,6 +170,7 @@ class Ship(pg.sprite.Sprite):
         - reduzir o cooldown do tiro;
         - reduzir o tempo de invulnerabilidade;
         - reduzir o tempo do escudo temporário;
+        - reduzir o tempo do tiro triplo;
         - mover a nave;
         - manter a nave dentro da tela usando wrap.
         """
@@ -167,6 +183,9 @@ class Ship(pg.sprite.Sprite):
         if self.shield_time > 0:
             self.shield_time -= dt
 
+        if self.triple_shot_time > 0:
+            self.triple_shot_time -= dt
+
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
         self.rect.center = self.pos
@@ -177,7 +196,8 @@ class Ship(pg.sprite.Sprite):
 
         Efeitos:
         - círculo piscando para indicar invulnerabilidade;
-        - círculo maior para indicar que o escudo temporário está ativo.
+        - círculo maior para indicar que o escudo temporário está ativo;
+        - triângulo invertido no topo para indicar tiro triplo.
         """
         dirv = angle_to_vec(self.angle)
         left = angle_to_vec(self.angle + 140)
@@ -188,6 +208,13 @@ class Ship(pg.sprite.Sprite):
         p3 = self.pos + right * self.r * 0.9
 
         draw_poly(surf, [p1, p2, p3])
+
+        # Indica o power-up de tiro triplo ativo
+        if self.triple_shot_time > 0:
+            p_top = self.pos + dirv * (self.r + 4)
+            p_l = self.pos + dirv * (self.r + 2) + angle_to_vec(self.angle + 90) * 4
+            p_r = self.pos + dirv * (self.r + 2) + angle_to_vec(self.angle - 90) * 4
+            draw_poly(surf, [p_top, p_l, p_r])
 
         # Indica a invulnerabilidade inicial ou após respawn
         if self.invuln > 0 and int(self.invuln * 10) % 2 == 0:
@@ -237,6 +264,43 @@ class ShieldPowerUp(pg.sprite.Sprite):
         left = self.pos + Vec(-self.r + 2, 0)
 
         draw_poly(surf, [top, right, bottom, left])
+
+
+class TripleShotPowerUp(pg.sprite.Sprite):
+    """Item coletável que concede tiro triplo temporário para a nave."""
+
+    def __init__(self, pos: Vec):
+        """
+        Inicializa o item de tiro triplo em uma posição fixa da tela.
+        """
+        super().__init__()
+        self.pos = Vec(pos)
+        self.ttl = C.TRIPLE_SHOT_PICKUP_TTL
+        self.r = C.TRIPLE_SHOT_PICKUP_RADIUS
+        self.rect = pg.Rect(0, 0, self.r * 2, self.r * 2)
+        self.rect.center = self.pos
+
+    def update(self, dt: float):
+        """
+        O item fica disponível por tempo limitado.
+        """
+        self.ttl -= dt
+        if self.ttl <= 0:
+            self.kill()
+
+        self.rect.center = self.pos
+
+    def draw(self, surf: pg.Surface):
+        """
+        Desenha o item de tiro triplo (um triângulo).
+        """
+        draw_circle(surf, self.pos, self.r)
+
+        p1 = self.pos + Vec(0, -self.r + 3)
+        p2 = self.pos + Vec(self.r - 3, self.r - 3)
+        p3 = self.pos + Vec(-self.r + 3, self.r - 3)
+
+        draw_poly(surf, [p1, p2, p3])
 
 
 class UFO(pg.sprite.Sprite):

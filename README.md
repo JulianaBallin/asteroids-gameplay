@@ -42,6 +42,9 @@ O jogador pode coletar um item especial que ativa um escudo por alguns segundos,
 ### 2. Combo de Destruição
 Cada destruição consecutiva aumenta o multiplicador de pontos, incentivando decisões mais agressivas e maior precisão durante a partida.
 
+### 3. Tiro Triplo
+O jogador pode coletar um item que permite disparar três tiros simultâneos por um tempo limitado, aumentando significativamente o poder de fogo contra grandes hordas de asteroides.
+
 ---
 
 <h2 align="center">🤖 Tecnologias Utilizadas</h2>
