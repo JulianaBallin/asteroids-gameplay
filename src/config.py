@@ -59,6 +59,13 @@ TRIPLE_SHOT_SPAWN_EVERY = 20.0 # Intervalo para surgir o item de tiro triplo
 TRIPLE_SHOT_PICKUP_TTL = 8.0   # Tempo de vida do item na tela
 TRIPLE_SHOT_PICKUP_RADIUS = 10 # Raio do item coletável
 
+# Configurações da mecânica de raio laser
+LASER_DURATION = 8.0           # Duração do laser após coleta
+LASER_SPAWN_EVERY = 25.0       # Intervalo para surgir o item de laser
+LASER_PICKUP_TTL = 8.0         # Tempo de vida do item na tela
+LASER_PICKUP_RADIUS = 10       # Raio do item coletável
+LASER_RANGE = 400.0            # Alcance máximo do raio laser
+
 # Configurações da mecânica de combo de destruição
 COMBO_WINDOW = 2.0             # Janela máxima entre destruições para manter o combo
 COMBO_MAX_MULTIPLIER = 5       # Multiplicador máximo permitido
