@@ -7,7 +7,7 @@ from random import uniform
 import pygame as pg
 
 import config as C
-from sprites import Asteroid, ShieldPowerUp, Ship, UFO
+from sprites import Asteroid, ShieldPowerUp, Ship, TripleShotPowerUp, UFO
 from utils import Vec, rand_edge_pos, rand_unit_vec
 
 
@@ -19,6 +19,7 @@ class World:
 
         Nesta versão, além da base do jogo, também controla:
         - power-up de escudo;
+        - power-up de tiro triplo;
         - estado do combo de destruição;
         - pontuação, wave e vidas.
         """
@@ -38,6 +39,7 @@ class World:
         self.safe = C.SAFE_SPAWN_TIME
         self.ufo_timer = C.UFO_SPAWN_EVERY
         self.shield_timer = C.SHIELD_SPAWN_EVERY
+        self.triple_shot_timer = C.TRIPLE_SHOT_SPAWN_EVERY
         self.game_over = False
 
         # Estado da mecânica de combo
@@ -97,6 +99,19 @@ class World:
         self.powerups.add(powerup)
         self.all_sprites.add(powerup)
 
+    def spawn_triple_shot_powerup(self):
+        """
+        Cria um item de tiro triplo em uma posição aleatória da tela.
+        """
+        pos = Vec(
+            uniform(80, C.WIDTH - 80),
+            uniform(80, C.HEIGHT - 80),
+        )
+
+        powerup = TripleShotPowerUp(pos)
+        self.powerups.add(powerup)
+        self.all_sprites.add(powerup)
+
     def ufo_try_fire(self):
         """Permite que cada UFO ativo tente atirar na nave."""
         for ufo in self.ufos:
@@ -106,12 +121,12 @@ class World:
                 self.all_sprites.add(bullet)
 
     def try_fire(self):
-        """Dispara um tiro da nave se o limite de projéteis permitir."""
+        """Dispara tiros da nave se o limite de projéteis permitir."""
         if len(self.bullets) >= C.MAX_BULLETS:
             return
 
-        bullet = self.ship.fire()
-        if bullet:
+        new_bullets = self.ship.fire()
+        for bullet in new_bullets:
             self.bullets.add(bullet)
             self.all_sprites.add(bullet)
 
@@ -160,7 +175,7 @@ class World:
         - atualizar sprites;
         - controlar área segura após respawn;
         - controlar surgimento e tiros de UFO;
-        - controlar surgimento do item de escudo;
+        - controlar surgimento dos power-ups;
         - controlar expiração do combo;
         - resolver colisões;
         - iniciar novas waves.
@@ -177,6 +192,12 @@ class World:
         if self.shield_timer <= 0 and not self.powerups:
             self.spawn_shield_powerup()
             self.shield_timer = C.SHIELD_SPAWN_EVERY
+
+        # Controla o surgimento periódico do item de tiro triplo
+        self.triple_shot_timer -= dt
+        if self.triple_shot_timer <= 0 and not self.powerups:
+            self.spawn_triple_shot_powerup()
+            self.triple_shot_timer = C.TRIPLE_SHOT_SPAWN_EVERY
 
         # Controla o tempo do combo
         if self.combo_timer > 0:
@@ -211,7 +232,7 @@ class World:
         - tiro do jogador com asteroides;
         - tiro do UFO com asteroides;
         - nave com asteroides, UFOs e tiros inimigos;
-        - nave com item de escudo;
+        - nave com itens (power-ups);
         - tiro do jogador com UFO.
         """
         hits = pg.sprite.groupcollide(
@@ -234,10 +255,13 @@ class World:
         for asteroid, _ in ufo_hits.items():
             self.split_asteroid(asteroid, by_player=False)
 
-        # Coleta do item de escudo
+        # Coleta de itens (power-ups)
         for powerup in list(self.powerups):
             if (powerup.pos - self.ship.pos).length() < (powerup.r + self.ship.r):
-                self.ship.shield_time = C.SHIELD_DURATION
+                if isinstance(powerup, ShieldPowerUp):
+                    self.ship.shield_time = C.SHIELD_DURATION
+                elif isinstance(powerup, TripleShotPowerUp):
+                    self.ship.triple_shot_time = C.TRIPLE_SHOT_DURATION
                 powerup.kill()
 
         # Colisões que causam dano à nave
@@ -336,6 +360,7 @@ class World:
         - vidas;
         - wave;
         - tempo restante do escudo, se ativo;
+        - tempo restante do tiro triplo, se ativo;
         - combo atual, se houver sequência em andamento.
         """
         for spr in self.all_sprites:
@@ -347,6 +372,9 @@ class World:
 
         if self.ship.shield_time > 0:
             txt += f"   SHIELD {self.ship.shield_time:0.1f}s"
+
+        if self.ship.triple_shot_time > 0:
+            txt += f"   TRIPLE {self.ship.triple_shot_time:0.1f}s"
 
         if self.combo_hits > 1 and self.combo_timer > 0:
             txt += f"   COMBO x{self.combo_multiplier}"
